@@ -203,8 +203,9 @@
                     :reveal {music_reveal == screen}
                     :duration "350ms"
                      (box :vexpand "false" :hexpand "false" :orientation "h"
-                      (label :class "song" :text "${song_artist}:")))
-        (button :class "song" :onclick "${EWW_CMD} open --toggle --screen ${screen} music_win; ${EWW_CMD} update music_open=${!music_open}" song)
+                      (label :class "song" :limit-width 20 :text "${song_artist}:")))
+        (button :class "song" :onclick "${EWW_CMD} open --toggle --screen ${screen} music_win; ${EWW_CMD} update music_open=${!music_open}"
+          (label :limit-width 32 :text song))
         (revealer :transition "slideright"
             :reveal {music_reveal == screen}
             :duration "350ms"
@@ -249,7 +250,7 @@
    (music :screen screen)))
 
 (defwidget bar_1 [screen]
-  (box :class "bar_class"
+  (centerbox :class "bar_class"
        :orientation "h"
    (right :screen screen)
    (center :screen screen)

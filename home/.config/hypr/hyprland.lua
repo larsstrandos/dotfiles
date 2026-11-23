@@ -61,7 +61,7 @@ hl.on("hyprland.start", function()
 
     -- Need to start eww with env vars
     hl.exec_cmd("eww daemon --no-daemonize")
-    hl.exec_cmd("eww open topbar && sleep 3 && eww open topbar")
+    hl.exec_cmd(home .. "/.local/bin/eww-bars") -- one topbar per monitor, see BAR_MONITORS
 
     -- Clipboard history
     hl.exec_cmd("wl-paste --type text --watch cliphist store")  -- Stores only text data
@@ -69,9 +69,9 @@ hl.on("hyprland.start", function()
 
 end)
 
--- The old socat listener that reopened the topbar on monitor hotplug was not
--- ported: socat isn't installed and the line was mis-quoted, so it never ran.
--- The native replacement would be an hl.on("monitor.added", ...) handler.
+-- Keep the eww bars in step with plugged and unplugged monitors
+hl.on("monitor.added",   function() hl.exec_cmd(home .. "/.local/bin/eww-bars") end)
+hl.on("monitor.removed", function() hl.exec_cmd(home .. "/.local/bin/eww-bars") end)
 
 
 -----------------------

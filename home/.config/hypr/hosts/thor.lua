@@ -35,8 +35,9 @@ hl.monitor({
     scale    = 1,
 })
 
--- eww's topbar goes on this monitor (matched against the monitor description)
-hl.env("MAIN_MONITOR", "LG ULTRAGEAR+ 512NTBKGY549")
+-- eww topbars: one per monitor whose description contains an entry below.
+-- Unset = a bar on every monitor.
+hl.env("BAR_MONITORS", "LG ULTRAGEAR+ 512NTBKGY549,ASUS VG289Q1A")
 
 ---- AUTOSTART ----
 hl.on("hyprland.start", function()

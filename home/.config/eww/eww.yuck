@@ -81,21 +81,19 @@
 
 (defpoll workspaces :interval "10s" :initial '[]' `hyprctl workspaces -j`)
 (defpoll activeworkspace :interval "10s" :initial "100" `hyprctl activeworkspace -j | jq .id`)
-;; should be defvar and use `eww update monitor={monitor name}`
-(defpoll monitor :interval "1h" :initial "DP-1" `hyprctl monitors -j | jq -r --arg m "$MAIN_MONITOR" '[.[] | select($m != "" and (.description | contains($m)))] + [.[0]] | .[0].name'`)
 (defpoll monitors :interval "10s" :initial '[]' `hyprctl monitors -j`)
 (defpoll datetime :interval "1s" :initial "a" `date "+%d. %b %H:%M"`)
 (defpoll numxwaylands :interval "1m" :initial "0" `hyprctl clients -j | jq --raw-output '.[] | select(.xwayland == true) | .title' |
   wc -l`)
 (defpoll xwaylands :interval "1m" :initial "0" `hyprctl clients -j | jq --raw-output '.[] | select(.xwayland == true) | .title'`)
 
-(defwidget workspaces []
+(defwidget workspaces [screen]
   (box :class "works" :space-evenly false
-    (for workspace in {jq(workspaces, '[ .[] | select(.monitor == "${monitor}") ] | sort_by(.id)')}
+    (for workspace in {jq(workspaces, '[ .[] | select(.monitor == "${screen}") ] | sort_by(.id)')}
       (button :onclick `hyprctl dispatch 'hl.dsp.focus({ workspace = "${workspace.name == "gaming" ? "name:" : ""}${workspace.name}" })'`
         (box :class "workspacebox ${workspace.name == activeworkspacev2 ? "workspacebox-active" : ""}" (label :class {workspace.id < 0 || workspace.id >= 10 ? "workspace-gtlt10" : "" } :text "${workspace.name == "gaming" ? "G" : workspace.id}"))))))
 
-(defwidget bat []
+(defwidget bat [screen]
     (box :class "bat_module" :vexpand "false" :hexpand "false"
               (circular-progress :value battery
                   :class "batbar"
@@ -103,11 +101,11 @@
                (button
                    :class "iconbat"
                    :tooltip "battery on ${battery}%"
-                   :onclick "${EWW_CMD} ${system_open ? "close" : "open"} system; ${EWW_CMD} update system_open=${!system_open}"
+                   :onclick "${EWW_CMD} open --toggle --screen ${screen} system; ${EWW_CMD} update system_open=${!system_open}"
                    "⬤"))))
 
 
-(defwidget mem []
+(defwidget mem [screen]
     (box :class "mem_module" :vexpand "false" :hexpand "false"
               (circular-progress :value {EWW_RAM.used_mem_perc}
                   :class "membar"
@@ -115,10 +113,10 @@
                (button
                    :class "iconmem"
                    :tooltip "using ${ceil(EWW_RAM.used_mem_perc)}% ram"
-                   :onclick "${EWW_CMD} ${system_open ? "close" : "open"} system; ${EWW_CMD} update system_open=${!system_open}"
+                   :onclick "${EWW_CMD} open --toggle --screen ${screen} system; ${EWW_CMD} update system_open=${!system_open}"
                    "⬤"))))
 
-(defwidget disk []
+(defwidget disk [screen]
     (box :class "mem_module" :vexpand "false" :hexpand "false"
               (circular-progress :value {replace(jq(volumes, '.filesystems[] | select(.target == "/home")["use%"]', "r"), "%", "")}
                   :class "membar"
@@ -126,7 +124,7 @@
                (button
                    :class "iconmem"
                    :tooltip "using ${jq(volumes, '.filesystems[] | select(.target == "/home")["use%"]', "r")} disk"
-                   :onclick "${EWW_CMD} ${system_open ? "close" : "open"} system; ${EWW_CMD} update system_open=${!system_open}"
+                   :onclick "${EWW_CMD} open --toggle --screen ${screen} system; ${EWW_CMD} update system_open=${!system_open}"
                    "⬤"))))
 
 (defwidget sep []
@@ -151,7 +149,7 @@
       (button :class "log_but ${powertools_poweroff_confirm ? "confirm" : ""}" :onclick {!powertools_poweroff_confirm ? "${EWW_CMD} update powertools_poweroff_confirm=true" : "systemctl poweroff"} {powertools_poweroff_confirm ? "✔️" : "⏻"}))))))))
 
 
-(defwidget clock_module []
+(defwidget clock_module [screen]
   (eventbox :onhover "${EWW_CMD} update time_rev=true"
         :onhoverlost "${EWW_CMD} update time_rev=false"
     (box :class "module" :space-evenly "false" :orientation "h" :spacing "3"
@@ -162,13 +160,13 @@
           :reveal time_rev
           :duration "350ms"
         (button :class "clock_date_class"
-               :onclick "${EWW_CMD} ${calendar_open ? "close" : "open"} calendar; ${EWW_CMD} update calendar_open=${!calendar_open}" {formattime(EWW_TIME, "%d. %B")})))))
+               :onclick "${EWW_CMD} open --toggle --screen ${screen} calendar; ${EWW_CMD} update calendar_open=${!calendar_open}" {formattime(EWW_TIME, "%d. %B")})))))
 
-(defwidget volume []
+(defwidget volume [screen]
   (eventbox :onhover "${EWW_CMD} update vol_reveal=true"
         :onhoverlost "${EWW_CMD} update vol_reveal=false"
    (box :class "module-2" :space-evenly "false" :orientation "h" :spacing "3"
-    (button   :onclick "${EWW_CMD} ${audio_open ? "close" : "open"} audio_ctl; ${EWW_CMD} update audio_open=${!audio_open}"   :class "volume_icon" "🎧")
+    (button   :onclick "${EWW_CMD} open --toggle --screen ${screen} audio_ctl; ${EWW_CMD} update audio_open=${!audio_open}"   :class "volume_icon" "🎧")
     (revealer :transition "slideleft"
         :reveal vol_reveal
         :duration "350ms"
@@ -196,7 +194,7 @@
             :onchange "brightnessctl set {}%")))))
 
 ;;  Music
-(defwidget music []
+(defwidget music [screen]
   (eventbox :onhover "${EWW_CMD} update music_reveal=true"
         :onhoverlost "${EWW_CMD} update music_reveal=false"
     (box :class "module-2" :orientation "h" :space-evenly "false" :vexpand "false" :hexpand "false"
@@ -206,7 +204,7 @@
                     :duration "350ms"
                      (box :vexpand "false" :hexpand "false" :orientation "h"
                       (label :class "song" :text "${song_artist}:")))
-        (button :class "song" :onclick "${EWW_CMD} ${music_open ? "close" : "open"} music_win; ${EWW_CMD} update music_open=${!music_open}" song)
+        (button :class "song" :onclick "${EWW_CMD} open --toggle --screen ${screen} music_win; ${EWW_CMD} update music_open=${!music_open}" song)
         (revealer :transition "slideright"
             :reveal music_reveal
             :duration "350ms"
@@ -217,48 +215,48 @@
 
 
 
-(defwidget left []
+(defwidget left [screen]
   (box :orientation "h"
       :space-evenly false
           :halign "end"
       :class "left_modules"
    (bright)
-   (volume)
+   (volume :screen screen)
    (wifi)
    (ethernet)
    (sep)
-   (bat)
-   (disk)
-   (mem)
+   (bat :screen screen)
+   (disk :screen screen)
+   (mem :screen screen)
    (sep)
-   (clock_module)
+   (clock_module :screen screen)
    (powertools)))
 
 
-(defwidget right []
+(defwidget right [screen]
   (box :orientation "h"
       :space-evenly false
           :halign "start"
-      :class "right_modules" (workspaces)))
+      :class "right_modules" (workspaces :screen screen)))
 
 
 
-(defwidget center []
+(defwidget center [screen]
   (box :orientation "h"
       :space-evenly false
           :halign "center"
       :class "center_modules"
-   (music)))
+   (music :screen screen)))
 
-(defwidget bar_1 []
+(defwidget bar_1 [screen]
   (box :class "bar_class"
        :orientation "h"
-   (right)
-   (center)
-   (left)))
+   (right :screen screen)
+   (center :screen screen)
+   (left :screen screen)))
 
-(defwindow topbar
-          :monitor '["<primary>", "512NTBKGY549", "LG ULTRAGEAR+"]'
+(defwindow topbar [screen]
+          :monitor screen
           :exclusive true
           :geometry (geometry :x "0%"
                        :y "9px"
@@ -269,7 +267,7 @@
           :windowtype "dock"
           ;; :reserve (struts :distance "40px" :side "top")
           ;; :wm-ignore false
-  (bar_1))
+  (bar_1 :screen screen))
 
 (defwidget system []
   (box :class "sys_win" :orientation "v" :space-evenly "false" :hexpand "false" :vexpand "false" :spacing 0
@@ -340,12 +338,11 @@
         :year calendar_year))))
 
 (defwindow calendar
-          :monitor '["<primary>", "512NTBKGY549", "LG ULTRAGEAR+"]'
-          :geometry (geometry :x "-20px")
-             :y "7%"
-                         :anchor "top right"
-             :width "270px"
-             :height "60px"
+          :geometry (geometry :x "20px"
+                              :y "7%"
+                              :anchor "top right"
+                              :width "270px"
+                              :height "60px")
  (cal))
 
 (defwidget audio []
@@ -377,8 +374,7 @@
              :min 0))))))
 
 (defwindow audio_ctl
-  :monitor '["<primary>", "512NTBKGY549", "LG ULTRAGEAR+"]'
-  :geometry (geometry :x "-20px"
+  :geometry (geometry :x "20px"
              :y "7%"
                          :anchor "top right"
              :width "280px"
@@ -387,8 +383,7 @@
 
 
 (defwindow system
-  :monitor '["<primary>", "512NTBKGY549", "LG ULTRAGEAR+"]'
-  :geometry (geometry :x "-20px"
+  :geometry (geometry :x "20px"
              :y "7%"
                          :anchor "top right"
              :width "290px"
@@ -412,7 +407,6 @@
 
 
 ;;  music
-(defwindow music_win :stacking "fg" :focusable "false" :screen 1
-        :monitor '["<primary>", "XG49WCR"]'
+(defwindow music_win :stacking "fg" :focusable "false"
         :geometry (geometry :x "0" :y "7%" :width 428 :height 104 :anchor "top center")
                  (music_pop))

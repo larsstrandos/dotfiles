@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+#
+# Opens one eww topbar per Hyprland monitor, as window id topbar-<output>,
+# and closes bars whose monitor is gone. Safe to run again at any time.
+#
+# BAR_MONITORS (set in hypr/hosts/<host>.lua) limits the bars to monitors
+# whose description contains one of its comma-separated entries.
+
+bar_monitors="${BAR_MONITORS:-}"
+
+#
+# Waits up to 10 seconds for the eww daemon to answer.
+#
+function wait_for_daemon()
+{
+	local i
+
+	for (( i = 0; i < 20; i++ )); do
+		eww ping >/dev/null 2>&1 && return
+		sleep 0.5
+	done
+	return 1
+}
+
+#
+# Prints the output names that should have a bar.
+#
+function wanted_outputs()
+{
+	hyprctl monitors -j |
+	jq -r --arg want "$bar_monitors" '
+		($want | split(",") | map(select(. != ""))) as $w
+		| .[] | .description as $d
+		| select(($w | length) == 0 or any($w[]; . as $m | $d | contains($m)))
+		| .name'
+}
+
+#
+# Prints the ids of open topbar windows.
+#
+function open_bars()
+{
+	eww active-windows | sed -n 's/^\(topbar-[^:]*\):.*/\1/p'
+}
+
+wait_for_daemon || { echo "eww-bars: eww daemon not running" >&2; exit 1; }
+
+wanted="$(wanted_outputs)" || exit $?
+
+for id in $(open_bars); do
+	grep -qx "${id#topbar-}" <<< "$wanted" || eww close "$id"
+done
+
+for output in $wanted; do
+	open_bars | grep -qx "topbar-$output" && continue
+	eww open topbar --id "topbar-$output" --screen "$output" \
+	                --arg "screen=$output"
+done

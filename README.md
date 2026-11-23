@@ -25,7 +25,7 @@ Files that are in the way are moved to `~/.dotfiles-backup/<timestamp>/`, never 
 ## Per-machine config
 
 - **Hyprland:** `hyprland.lua` loads `hypr/hosts/<hostname>.lua`, which sets monitors, GPU env and quirks, and returns `{ main_monitor = ... }`. An unknown host gets Hyprland's defaults.
-- **eww:** the topbar goes on the monitor whose description contains `$MAIN_MONITOR` (set by the host file), or the first monitor.
+- **eww:** `~/.local/bin/eww-bars` opens one topbar per monitor (window id `topbar-<output>`), limited to the monitors listed in `$BAR_MONITORS` when the host file sets it. Hyprland re-runs it on monitor hotplug. Popups open on the screen whose bar was clicked.
 - **git:** name/email live in `~/.config/git/identity`, which is not committed.
 - **SSH:** `~/.ssh/config` is deliberately not in this repo.
 

@@ -10,18 +10,18 @@
 (defpoll battery :interval "15s" :initial "0" "./scripts/battery --bat || echo 100")
 (defpoll battery_status :interval "1m" "./scripts/battery --bat-st || echo plugged-in")
 (defpoll volumes :interval "5s" :initial '{"filesystems":[{"target":"/home","use%": 0}]}' "findmnt --df --json")
-(defvar vol_reveal false)
-(defvar br_reveal false)
-(defvar music_reveal false)
-(defvar wifi_rev false)
-(defvar time_rev false)
+(defvar vol_reveal "none") ; name of the screen whose bar is hovered
+(defvar br_reveal "none") ; name of the screen whose bar is hovered
+(defvar music_reveal "none") ; name of the screen whose bar is hovered
+(defvar wifi_rev "none") ; name of the screen whose bar is hovered
+(defvar time_rev "none") ; name of the screen whose bar is hovered
 (defvar calendar_open false)
 (defvar audio_open false)
 (defvar system_open false)
 (defvar music_open false)
-(defvar powertools_open false)
-(defvar powertools_hibernate_confirm false)
-(defvar powertools_poweroff_confirm false)
+(defvar powertools_open "none") ; name of the screen whose bar is hovered
+(defvar powertools_hibernate_confirm "none") ; name of the screen whose bar is hovered
+(defvar powertools_poweroff_confirm "none") ; name of the screen whose bar is hovered
 ;; (deflisten workspace "scripts/workspace")
 
 (defvar ewwconfig "$HOME/.config/eww")
@@ -47,25 +47,25 @@
 
 ;; widgets
 
-(defwidget wifi []
-  (eventbox :onhover "${EWW_CMD} update wifi_rev=true"
-        :onhoverlost "${EWW_CMD} update wifi_rev=false"
+(defwidget wifi [screen]
+  (eventbox :onhover "${EWW_CMD} update wifi_rev=${screen}"
+        :onhoverlost "${EWW_CMD} update wifi_rev=none"
     (box :vexpand "false" :hexpand "false" :space-evenly "false"
           (button :class "module-wif" :onclick "networkmanager_dmenu" "🛜")
      (revealer :transition "slideright"
-            :reveal wifi_rev
+            :reveal {wifi_rev == screen}
             :duration "350ms"
       (label :class "module_essid"
              :text {jq(ESSID_WLAN, ".KernelOperationalStateString", "r") == "up" ? "todo: ssid" : "D/C"}
              )))))
 
-(defwidget ethernet []
-  (eventbox :onhover "${EWW_CMD} update wifi_rev=true"
-        :onhoverlost "${EWW_CMD} update wifi_rev=false"
+(defwidget ethernet [screen]
+  (eventbox :onhover "${EWW_CMD} update wifi_rev=${screen}"
+        :onhoverlost "${EWW_CMD} update wifi_rev=none"
     (box :vexpand "false" :hexpand "false" :space-evenly "false"
           (button :class "module-wif" :onclick "networkmanager_dmenu" "🔗")
      (revealer :transition "slideright"
-            :reveal wifi_rev
+            :reveal {wifi_rev == screen}
             :duration "350ms"
       (box :class "network-addresses" :space-evenly "false"
         (label :class "module_essid"
@@ -133,42 +133,42 @@
 
       ; (button :class "wifi_but" :onclick "networkmanager_dmenu" :style "color: ${wifi_col}; background-color: ${wifi_bg};"  wifi_icon)
       ; (button :class "notif_but" :onclick "dunstctl set-paused toggle" :style "color: ${notif_col}; background-color: ${notif_bg};"  notif_icon))
-(defwidget powertools []
-  (eventbox :onhover "${EWW_CMD} update powertools_open=true"
-        :onhoverlost "${EWW_CMD} update powertools_open=false powertools_hibernate_confirm=false powertools_poweroff_confirm=false"
+(defwidget powertools [screen]
+  (eventbox :onhover "${EWW_CMD} update powertools_open=${screen}"
+        :onhoverlost "${EWW_CMD} update powertools_open=none powertools_hibernate_confirm=none powertools_poweroff_confirm=none"
   (box :valign "center" :space-evenly "false" :orientation "h" :style "margin-right: 10px;"
   (label :text "⚙️")
    (revealer :transition "slideleft"
-        :reveal powertools_open
+        :reveal {powertools_open == screen}
         :duration "350ms"
-  (box :class {powertools_open ? "sus_tray" : ""} :valign "center"  :space-evenly "false" :orientation "h"
+  (box :class {powertools_open == screen ? "sus_tray" : ""} :valign "center"  :space-evenly "false" :orientation "h"
     (box :orientation "h" :hexpand "false" :vexpand "false" :space-evenly "false"
     (box :orientation "h" :hexpand "false" :vexpand "false" :space-evenly "false"
       (button :class "vol_but" :onclick "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle" "🔊")
-      (button :class "log_but ${powertools_hibernate_confirm ? "confirm" : ""}" :onclick {!powertools_hibernate_confirm ? "${EWW_CMD} update powertools_hibernate_confirm=true" : "systemctl suspend"} {powertools_hibernate_confirm ? "✔️" : "⏾"})
-      (button :class "log_but ${powertools_poweroff_confirm ? "confirm" : ""}" :onclick {!powertools_poweroff_confirm ? "${EWW_CMD} update powertools_poweroff_confirm=true" : "systemctl poweroff"} {powertools_poweroff_confirm ? "✔️" : "⏻"}))))))))
+      (button :class "log_but ${powertools_hibernate_confirm == screen ? "confirm" : ""}" :onclick {powertools_hibernate_confirm != screen ? "${EWW_CMD} update powertools_hibernate_confirm=${screen}" : "systemctl suspend"} {powertools_hibernate_confirm == screen ? "✔️" : "⏾"})
+      (button :class "log_but ${powertools_poweroff_confirm == screen ? "confirm" : ""}" :onclick {powertools_poweroff_confirm != screen ? "${EWW_CMD} update powertools_poweroff_confirm=${screen}" : "systemctl poweroff"} {powertools_poweroff_confirm == screen ? "✔️" : "⏻"}))))))))
 
 
 (defwidget clock_module [screen]
-  (eventbox :onhover "${EWW_CMD} update time_rev=true"
-        :onhoverlost "${EWW_CMD} update time_rev=false"
+  (eventbox :onhover "${EWW_CMD} update time_rev=${screen}"
+        :onhoverlost "${EWW_CMD} update time_rev=none"
     (box :class "module" :space-evenly "false" :orientation "h" :spacing "3"
       (label :text {formattime(EWW_TIME, "%H")} :class "clock_time_class")
       (label :text "📅" :class "clock_time_sep")
       (label :text {formattime(EWW_TIME, "%M")} :class "clock_minute_class")
      (revealer :transition "slideleft"
-          :reveal time_rev
+          :reveal {time_rev == screen}
           :duration "350ms"
         (button :class "clock_date_class"
                :onclick "${EWW_CMD} open --toggle --screen ${screen} calendar; ${EWW_CMD} update calendar_open=${!calendar_open}" {formattime(EWW_TIME, "%d. %B")})))))
 
 (defwidget volume [screen]
-  (eventbox :onhover "${EWW_CMD} update vol_reveal=true"
-        :onhoverlost "${EWW_CMD} update vol_reveal=false"
+  (eventbox :onhover "${EWW_CMD} update vol_reveal=${screen}"
+        :onhoverlost "${EWW_CMD} update vol_reveal=none"
    (box :class "module-2" :space-evenly "false" :orientation "h" :spacing "3"
     (button   :onclick "${EWW_CMD} open --toggle --screen ${screen} audio_ctl; ${EWW_CMD} update audio_open=${!audio_open}"   :class "volume_icon" "🎧")
     (revealer :transition "slideleft"
-        :reveal vol_reveal
+        :reveal {vol_reveal == screen}
         :duration "350ms"
      (scale    :class "volbar"
             :value volume_percent
@@ -178,12 +178,12 @@
             :min 0
             :onchange "${playerctl} volume $(awk 'BEGIN{print {} / 100}')")))))
 
-(defwidget bright []
-  (eventbox :onhover "${EWW_CMD} update br_reveal=true" :onhoverlost "${EWW_CMD} update br_reveal=false"
+(defwidget bright [screen]
+  (eventbox :onhover "${EWW_CMD} update br_reveal=${screen}" :onhoverlost "${EWW_CMD} update br_reveal=none"
    (box :class "module-2" :space-evenly "false" :orientation "h" :spacing "3"
      (label :text "💡" :class "bright_icon" :tooltip "brightness")
     (revealer :transition "slideleft"
-        :reveal br_reveal
+        :reveal {br_reveal == screen}
         :duration "350ms"
      (scale    :class "brightbar"
             :value brightness_percent
@@ -195,18 +195,18 @@
 
 ;;  Music
 (defwidget music [screen]
-  (eventbox :onhover "${EWW_CMD} update music_reveal=true"
-        :onhoverlost "${EWW_CMD} update music_reveal=false"
+  (eventbox :onhover "${EWW_CMD} update music_reveal=${screen}"
+        :onhoverlost "${EWW_CMD} update music_reveal=none"
     (box :class "module-2" :orientation "h" :space-evenly "false" :vexpand "false" :hexpand "false"
         (box :class "song_cover_art" :vexpand "false" :hexpand "false" :style "background-image: url('${cover_art}');")
         (revealer :transition "slideleft"
-                    :reveal music_reveal
+                    :reveal {music_reveal == screen}
                     :duration "350ms"
                      (box :vexpand "false" :hexpand "false" :orientation "h"
                       (label :class "song" :text "${song_artist}:")))
         (button :class "song" :onclick "${EWW_CMD} open --toggle --screen ${screen} music_win; ${EWW_CMD} update music_open=${!music_open}" song)
         (revealer :transition "slideright"
-            :reveal music_reveal
+            :reveal {music_reveal == screen}
             :duration "350ms"
              (box :vexpand "false" :hexpand "false" :orientation "h"
               (button :class "song_btn_prev" :onclick "${playerctl} previous" "")
@@ -220,17 +220,17 @@
       :space-evenly false
           :halign "end"
       :class "left_modules"
-   (bright)
+   (bright :screen screen)
    (volume :screen screen)
-   (wifi)
-   (ethernet)
+   (wifi :screen screen)
+   (ethernet :screen screen)
    (sep)
    (bat :screen screen)
    (disk :screen screen)
    (mem :screen screen)
    (sep)
    (clock_module :screen screen)
-   (powertools)))
+   (powertools :screen screen)))
 
 
 (defwidget right [screen]

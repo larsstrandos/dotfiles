@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# ASUS VG289Q1A on HDMI-A-1 often stays black after boot at 4K60 until the
+# mode is changed. Bounce it through 1080p and back to force a new HDMI link.
+asus='desc:ASUSTek COMPUTER INC ASUS VG289Q1A 0x0001189D'
+set_mode() {
+	hyprctl eval "hl.monitor({ output = \"$asus\", mode = \"$1\", position = \"auto-center-left\", scale = $2, transform = 1 })"
+}
+sleep "${1:-4}"
+set_mode 1920x1080@60 1
+sleep 2
+set_mode 3840x2160@60 1.25

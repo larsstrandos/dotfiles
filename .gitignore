@@ -1,0 +1,15 @@
+# Secrets and keys (encrypted *.enc.* files are fine)
+age.txt
+*.key
+*.pem
+id_*
+.env
+
+# Machine-local
+home/.config/git/identity
+*.local.*
+home/.config/fish/fish_variables
+
+# Runtime state that apps write next to their config
+home/.config/htop/htop_history
+*.bak*

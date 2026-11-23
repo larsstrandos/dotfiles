@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+#
+# Symlinks home/ into $HOME with stow. Files in the way are moved to
+# ~/.dotfiles-backup/<timestamp>/ first, so nothing is overwritten.
+#
+#   bin/link            back up conflicts, then link
+#   bin/link --dry-run  show what would happen
+
+source "${0%/*}/functions.sh" || exit $?
+
+dry_run=0
+case "$1" in
+	-n|--dry-run)	dry_run=1 ;;
+	"")		;;
+	*)		echo "link: unrecognized option $1" >&2; exit 1 ;;
+esac
+
+backup_dir="$backup_root/$(date +%Y%m%d-%H%M%S)"
+
+#
+# Backs up every target that exists and is not already our symlink.
+#
+function backup_conflicts()
+{
+	local path target
+
+	while read -r path; do
+		target="$HOME/$path"
+		[[ -e "$target" || -L "$target" ]] || continue
+		[[ "$(readlink -f "$target")" == "$package_dir/$path" ]] && continue
+
+		if (( dry_run )); then log "Would back up ~/$path"
+		else                   backup_path "$path" || return $?
+		fi
+	done < <(package_files)
+}
+
+#
+# Runs stow for the home package.
+#
+function stow_home()
+{
+	local flags=(--dir="$dotfiles_dir" --target="$HOME" --no-folding --verbose=1)
+
+	(( dry_run )) && flags+=(--simulate)
+	stow "${flags[@]}" --restow home || return $?
+}
+
+command -v stow >/dev/null || fail "stow is not installed!"
+
+backup_conflicts || fail "Backing up existing files failed!"
+stow_home        || fail "stow failed!"
+(( dry_run ))    || log "Linked. Backups (if any): $backup_dir"

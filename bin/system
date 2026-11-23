@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+#
+# Installs the root-owned files in system/ (copied, not linked) and reloads
+# the services that read them.
+
+source "${0%/*}/functions.sh" || exit $?
+
+#
+# Installs system/etc/keyd/default.conf and reloads keyd if it changed.
+#
+function install_keyd()
+{
+	local src="$dotfiles_dir/system/etc/keyd/default.conf"
+	local dest="/etc/keyd/default.conf"
+
+	cmp -s "$src" "$dest" && return
+	sudo install -Dm644 "$src" "$dest" || return $?
+	sudo keyd reload                   || return $?
+	log "Installed $dest"
+}
+
+install_keyd || fail "Installing keyd config failed!"

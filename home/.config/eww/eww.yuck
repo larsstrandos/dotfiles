@@ -1,0 +1,418 @@
+;; Variables
+(defpoll clock_time :interval "5m" "date +\%H")
+(defpoll clock_minute :interval "5s" "date +\%M")
+(defpoll clock_date :interval "10h" "date '+%d. %B'")
+(defpoll volume_percent :interval "3s" :initial "100" "playerctl volume | awk '{print $1 * 100}'")
+(defvar mic_percent 45.0)
+;; (defpoll mic_percent :interval "3s" "amixer -D pulse sget Capture | grep 'Left:' | awk -F'[][]' '{ print $2 }' | tr -d '%' || echo 10.0")
+(defvar brightness_percent 100.0)
+;; (defpoll brightness_percent :interval "5s" "brightnessctl -m -d intel_backlight | awk -F, '{print substr($4, 0, length($4)-1)}' | tr -d '%' || echo 100.0")
+(defpoll battery :interval "15s" :initial "0" "./scripts/battery --bat || echo 100")
+(defpoll battery_status :interval "1m" "./scripts/battery --bat-st || echo plugged-in")
+(defpoll volumes :interval "5s" :initial '{"filesystems":[{"target":"/home","use%": 0}]}' "findmnt --df --json")
+(defvar vol_reveal false)
+(defvar br_reveal false)
+(defvar music_reveal false)
+(defvar wifi_rev false)
+(defvar time_rev false)
+(defvar calendar_open false)
+(defvar audio_open false)
+(defvar system_open false)
+(defvar music_open false)
+(defvar powertools_open false)
+(defvar powertools_hibernate_confirm false)
+(defvar powertools_poweroff_confirm false)
+;; (deflisten workspace "scripts/workspace")
+
+(defvar ewwconfig "$HOME/.config/eww")
+;; (defvar eww "$HOME/.local/bin/eww/eww -c $HOME/.config/eww")
+
+(defpoll COL_WLAN :interval "1m" "")
+(defpoll ESSID_WLAN :interval "1m" :initial "{}" "networkctl list --json=short | jq '.Interfaces[] | select(.Type == \"wlan\")'")
+(defpoll ETHERNET_IPV4_DATA :interval "1m" :initial "[]" "ip -4 -json addr show dev $(ip route | awk '/default/ { print $5 }') scope global")
+(defpoll ETHERNET_IPV6_DATA :interval "1m" :initial "[]" "ip -6 -json addr show dev $(ip route | awk '/default/ { print $5 }') scope global")
+
+;; media
+(defvar playerctl "playerctl --player spotify")
+
+(deflisten song "playerctl -F metadata title")
+(deflisten song_artist "playerctl -F metadata artist")
+(deflisten current_status "playerctl -F metadata --format '{{position}} {{mpris:length}}' -F | awk '{print $1/$2 * 100}'")
+(deflisten song_status "playerctl -F metadata --format '{{ emoji(status) }}'")
+; gtk needs 'gvfs' installed to be able to load remote images (e.g. from spotify)
+(deflisten cover_art "playerctl -F metadata mpris:artUrl")
+
+(defpoll calendar_day :interval "20h" "date '+%d'")
+(defpoll calendar_year :interval "20h" "date '+%Y'")
+
+;; widgets
+
+(defwidget wifi []
+  (eventbox :onhover "${EWW_CMD} update wifi_rev=true"
+        :onhoverlost "${EWW_CMD} update wifi_rev=false"
+    (box :vexpand "false" :hexpand "false" :space-evenly "false"
+          (button :class "module-wif" :onclick "networkmanager_dmenu" "🛜")
+     (revealer :transition "slideright"
+            :reveal wifi_rev
+            :duration "350ms"
+      (label :class "module_essid"
+             :text {jq(ESSID_WLAN, ".KernelOperationalStateString", "r") == "up" ? "todo: ssid" : "D/C"}
+             )))))
+
+(defwidget ethernet []
+  (eventbox :onhover "${EWW_CMD} update wifi_rev=true"
+        :onhoverlost "${EWW_CMD} update wifi_rev=false"
+    (box :vexpand "false" :hexpand "false" :space-evenly "false"
+          (button :class "module-wif" :onclick "networkmanager_dmenu" "🔗")
+     (revealer :transition "slideright"
+            :reveal wifi_rev
+            :duration "350ms"
+      (box :class "network-addresses" :space-evenly "false"
+        (label :class "module_essid"
+               :text {jq(ETHERNET_IPV4_DATA, ".[].addr_info[].local", "r")})
+        (label :class "module_essid"
+               :text {jq(ETHERNET_IPV6_DATA, ".[].addr_info[] | select(. != {}) | .local", "r")}))))))
+
+; activeworkspacev2 doesn't work after reload, need to close/open window})))))
+(deflisten activeworkspacev2 :initial 100 "hyprctl activeworkspace -j | jq -r .name; socat -u UNIX-CONNECT:$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock - | stdbuf -o0 awk -F '>>|,' -e '/^workspacev2>>/ {print $2}'")
+
+; restart eww when plugging monitors
+(deflisten monitoraddedv2 :initial 100 `socat -u UNIX-CONNECT:$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock - | stdbuf -o0 awk -F '>>|,' -e '/^monitoraddedv2>>/ {print $4}'`)
+
+(defpoll workspaces :interval "10s" :initial '[]' `hyprctl workspaces -j`)
+(defpoll activeworkspace :interval "10s" :initial "100" `hyprctl activeworkspace -j | jq .id`)
+;; should be defvar and use `eww update monitor={monitor name}`
+(defpoll monitor :interval "1h" :initial "DP-1" `hyprctl monitors -j | jq -r --arg m "$MAIN_MONITOR" '[.[] | select($m != "" and (.description | contains($m)))] + [.[0]] | .[0].name'`)
+(defpoll monitors :interval "10s" :initial '[]' `hyprctl monitors -j`)
+(defpoll datetime :interval "1s" :initial "a" `date "+%d. %b %H:%M"`)
+(defpoll numxwaylands :interval "1m" :initial "0" `hyprctl clients -j | jq --raw-output '.[] | select(.xwayland == true) | .title' |
+  wc -l`)
+(defpoll xwaylands :interval "1m" :initial "0" `hyprctl clients -j | jq --raw-output '.[] | select(.xwayland == true) | .title'`)
+
+(defwidget workspaces []
+  (box :class "works" :space-evenly false
+    (for workspace in {jq(workspaces, '[ .[] | select(.monitor == "${monitor}") ] | sort_by(.id)')}
+      (button :onclick `hyprctl dispatch 'hl.dsp.focus({ workspace = "${workspace.name == "gaming" ? "name:" : ""}${workspace.name}" })'`
+        (box :class "workspacebox ${workspace.name == activeworkspacev2 ? "workspacebox-active" : ""}" (label :class {workspace.id < 0 || workspace.id >= 10 ? "workspace-gtlt10" : "" } :text "${workspace.name == "gaming" ? "G" : workspace.id}"))))))
+
+(defwidget bat []
+    (box :class "bat_module" :vexpand "false" :hexpand "false"
+              (circular-progress :value battery
+                  :class "batbar"
+                  :thickness 4
+               (button
+                   :class "iconbat"
+                   :tooltip "battery on ${battery}%"
+                   :onclick "${EWW_CMD} ${system_open ? "close" : "open"} system; ${EWW_CMD} update system_open=${!system_open}"
+                   "⬤"))))
+
+
+(defwidget mem []
+    (box :class "mem_module" :vexpand "false" :hexpand "false"
+              (circular-progress :value {EWW_RAM.used_mem_perc}
+                  :class "membar"
+                  :thickness 4
+               (button
+                   :class "iconmem"
+                   :tooltip "using ${ceil(EWW_RAM.used_mem_perc)}% ram"
+                   :onclick "${EWW_CMD} ${system_open ? "close" : "open"} system; ${EWW_CMD} update system_open=${!system_open}"
+                   "⬤"))))
+
+(defwidget disk []
+    (box :class "mem_module" :vexpand "false" :hexpand "false"
+              (circular-progress :value {replace(jq(volumes, '.filesystems[] | select(.target == "/home")["use%"]', "r"), "%", "")}
+                  :class "membar"
+                  :thickness 4
+               (button
+                   :class "iconmem"
+                   :tooltip "using ${jq(volumes, '.filesystems[] | select(.target == "/home")["use%"]', "r")} disk"
+                   :onclick "${EWW_CMD} ${system_open ? "close" : "open"} system; ${EWW_CMD} update system_open=${!system_open}"
+                   "⬤"))))
+
+(defwidget sep []
+  (box :class "module-2" :vexpand "false" :hexpand "false"
+    (label :class "separ" :text "|")))
+
+      ; (button :class "wifi_but" :onclick "networkmanager_dmenu" :style "color: ${wifi_col}; background-color: ${wifi_bg};"  wifi_icon)
+      ; (button :class "notif_but" :onclick "dunstctl set-paused toggle" :style "color: ${notif_col}; background-color: ${notif_bg};"  notif_icon))
+(defwidget powertools []
+  (eventbox :onhover "${EWW_CMD} update powertools_open=true"
+        :onhoverlost "${EWW_CMD} update powertools_open=false powertools_hibernate_confirm=false powertools_poweroff_confirm=false"
+  (box :valign "center" :space-evenly "false" :orientation "h" :style "margin-right: 10px;"
+  (label :text "⚙️")
+   (revealer :transition "slideleft"
+        :reveal powertools_open
+        :duration "350ms"
+  (box :class {powertools_open ? "sus_tray" : ""} :valign "center"  :space-evenly "false" :orientation "h"
+    (box :orientation "h" :hexpand "false" :vexpand "false" :space-evenly "false"
+    (box :orientation "h" :hexpand "false" :vexpand "false" :space-evenly "false"
+      (button :class "vol_but" :onclick "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle" "🔊")
+      (button :class "log_but ${powertools_hibernate_confirm ? "confirm" : ""}" :onclick {!powertools_hibernate_confirm ? "${EWW_CMD} update powertools_hibernate_confirm=true" : "systemctl suspend"} {powertools_hibernate_confirm ? "✔️" : "⏾"})
+      (button :class "log_but ${powertools_poweroff_confirm ? "confirm" : ""}" :onclick {!powertools_poweroff_confirm ? "${EWW_CMD} update powertools_poweroff_confirm=true" : "systemctl poweroff"} {powertools_poweroff_confirm ? "✔️" : "⏻"}))))))))
+
+
+(defwidget clock_module []
+  (eventbox :onhover "${EWW_CMD} update time_rev=true"
+        :onhoverlost "${EWW_CMD} update time_rev=false"
+    (box :class "module" :space-evenly "false" :orientation "h" :spacing "3"
+      (label :text {formattime(EWW_TIME, "%H")} :class "clock_time_class")
+      (label :text "📅" :class "clock_time_sep")
+      (label :text {formattime(EWW_TIME, "%M")} :class "clock_minute_class")
+     (revealer :transition "slideleft"
+          :reveal time_rev
+          :duration "350ms"
+        (button :class "clock_date_class"
+               :onclick "${EWW_CMD} ${calendar_open ? "close" : "open"} calendar; ${EWW_CMD} update calendar_open=${!calendar_open}" {formattime(EWW_TIME, "%d. %B")})))))
+
+(defwidget volume []
+  (eventbox :onhover "${EWW_CMD} update vol_reveal=true"
+        :onhoverlost "${EWW_CMD} update vol_reveal=false"
+   (box :class "module-2" :space-evenly "false" :orientation "h" :spacing "3"
+    (button   :onclick "${EWW_CMD} ${audio_open ? "close" : "open"} audio_ctl; ${EWW_CMD} update audio_open=${!audio_open}"   :class "volume_icon" "🎧")
+    (revealer :transition "slideleft"
+        :reveal vol_reveal
+        :duration "350ms"
+     (scale    :class "volbar"
+            :value volume_percent
+            :orientation "h"
+            :tooltip "${volume_percent}%"
+            :max 100
+            :min 0
+            :onchange "${playerctl} volume $(awk 'BEGIN{print {} / 100}')")))))
+
+(defwidget bright []
+  (eventbox :onhover "${EWW_CMD} update br_reveal=true" :onhoverlost "${EWW_CMD} update br_reveal=false"
+   (box :class "module-2" :space-evenly "false" :orientation "h" :spacing "3"
+     (label :text "💡" :class "bright_icon" :tooltip "brightness")
+    (revealer :transition "slideleft"
+        :reveal br_reveal
+        :duration "350ms"
+     (scale    :class "brightbar"
+            :value brightness_percent
+            :orientation "h"
+            :tooltip "${brightness_percent}%"
+            :max 100
+            :min 0
+            :onchange "brightnessctl set {}%")))))
+
+;;  Music
+(defwidget music []
+  (eventbox :onhover "${EWW_CMD} update music_reveal=true"
+        :onhoverlost "${EWW_CMD} update music_reveal=false"
+    (box :class "module-2" :orientation "h" :space-evenly "false" :vexpand "false" :hexpand "false"
+        (box :class "song_cover_art" :vexpand "false" :hexpand "false" :style "background-image: url('${cover_art}');")
+        (revealer :transition "slideleft"
+                    :reveal music_reveal
+                    :duration "350ms"
+                     (box :vexpand "false" :hexpand "false" :orientation "h"
+                      (label :class "song" :text "${song_artist}:")))
+        (button :class "song" :onclick "${EWW_CMD} ${music_open ? "close" : "open"} music_win; ${EWW_CMD} update music_open=${!music_open}" song)
+        (revealer :transition "slideright"
+            :reveal music_reveal
+            :duration "350ms"
+             (box :vexpand "false" :hexpand "false" :orientation "h"
+              (button :class "song_btn_prev" :onclick "${playerctl} previous" "")
+              (button :class "song_btn_play" :onclick "${playerctl} play-pause" song_status)
+              (button :class "song_btn_next" :onclick "${playerctl} next" ""))))))
+
+
+
+(defwidget left []
+  (box :orientation "h"
+      :space-evenly false
+          :halign "end"
+      :class "left_modules"
+   (bright)
+   (volume)
+   (wifi)
+   (ethernet)
+   (sep)
+   (bat)
+   (disk)
+   (mem)
+   (sep)
+   (clock_module)
+   (powertools)))
+
+
+(defwidget right []
+  (box :orientation "h"
+      :space-evenly false
+          :halign "start"
+      :class "right_modules" (workspaces)))
+
+
+
+(defwidget center []
+  (box :orientation "h"
+      :space-evenly false
+          :halign "center"
+      :class "center_modules"
+   (music)))
+
+(defwidget bar_1 []
+  (box :class "bar_class"
+       :orientation "h"
+   (right)
+   (center)
+   (left)))
+
+(defwindow topbar
+          :monitor '["<primary>", "512NTBKGY549", "LG ULTRAGEAR+"]'
+          :exclusive true
+          :geometry (geometry :x "0%"
+                       :y "9px"
+                       :width "98%"
+                       :height "30px"
+                       :anchor "top center")
+          :stacking "fg"
+          :windowtype "dock"
+          ;; :reserve (struts :distance "40px" :side "top")
+          ;; :wm-ignore false
+  (bar_1))
+
+(defwidget system []
+  (box :class "sys_win" :orientation "v" :space-evenly "false" :hexpand "false" :vexpand "false" :spacing 0
+   (box :class "sys_bat_box" :orientation "h" :space-evenly "false"
+       (circular-progress :value battery
+                 :class "sys_bat"
+                 :thickness 9
+             (label :text "🔋"
+                 :class "sys_icon_bat"
+                 :limit-width 2
+                 :show_truncated false
+                 :wrap false))
+       (box :orientation "v" :space-evenly "false" :spacing 0 :hexpand "false" :vexpand "false"
+        (label :text "battery"
+            :halign "start"
+            :class "sys_text_bat"
+            :limit-width 9
+            :show_truncated false
+            :wrap false)
+        (label :text "${battery}%"
+            :halign "start"
+            :class "sys_text_bat_sub"
+            :limit-width 22
+            :show_truncated false
+            :wrap false)
+        (label :text "${battery_status}"
+            :halign "start"
+            :class "sys_text_bat_sub"
+            :limit-width 22
+            :show_truncated false
+            :wrap false)))
+   (label :text "" :class "sys_sep" :halign "center")
+   (box :class "sys_mem_box" :orientation "h" :space-evenly "false" :halign "start"
+       (circular-progress :value {EWW_RAM.used_mem_perc}
+                 :class "sys_mem"
+                 :thickness 9
+             (label :text "🧠"
+                 :class "sys_icon_mem"
+                 :limit-width 2
+                 :show_truncated false
+                 :wrap false
+                 :angle 0.0))
+       (box :orientation "v" :space-evenly "false" :spacing 0 :hexpand "false" :vexpand "false"
+        (label :text "memory"
+            :halign "start"
+            :class "sys_text_mem"
+            :limit-width 9
+            :show_truncated false
+            :wrap false)
+        (label :text "${formatbytes(floor(EWW_RAM.used_mem))} / ${formatbytes(EWW_RAM.total_mem, true)}"
+            :halign "start"
+            :class "sys_text_mem_sub"
+            :limit-width 22
+            :show_truncated false
+            :wrap false)
+        (label :text "${formatbytes(EWW_RAM.available_mem)} available"
+            :halign "start"
+            :class "sys_text_mem_sub"
+            :limit-width 22
+            :show_truncated false
+            :wrap false)))))
+
+(defwidget cal []
+  (box :class "cal" :orientation "v"
+   (box :class "cal-in"
+    (calendar :class "cal"
+        :day {formattime(EWW_TIME, "%d")}
+        :year calendar_year))))
+
+(defwindow calendar
+          :monitor '["<primary>", "512NTBKGY549", "LG ULTRAGEAR+"]'
+          :geometry (geometry :x "-20px")
+             :y "7%"
+                         :anchor "top right"
+             :width "270px"
+             :height "60px"
+ (cal))
+
+(defwidget audio []
+  (box :class "audio-box" :orientation "v" :space-evenly "false" :vexpand "false" :hexpand "false"
+   (box :halign "v" :space-evenly "false" :hexpand "false" :vexpand "false"
+    (box :class "speaker_icon" :orientation "v")
+    (box :orientation "v" :halign "center" :vexpand "false" :hexpand "false"
+       (label :class "speaker_text" :text "speaker" :valign "center" :halign "left")
+     (box :class "speaker_bar" :halign "center" :vexpand "false" :hexpand "false"
+      (scale    :value volume_percent
+                   :space-evenly "false"
+             :orientation "h"
+             :onchange "amixer -D pulse sset Master {}%"
+                   :tooltip "volume on ${volume_percent}%"
+             :max 100
+             :min 0))))
+   (label :text "" :class "audio_sep" :halign "center")
+   (box :halign "v" :space-evenly "false" :hexpand "false" :vexpand "false"
+    (box :class "mic_icon" :orientation "v")
+    (box :orientation "v" :halign "center" :vexpand "false" :hexpand "false"
+       (label :class "mic_text" :text "mic" :valign "center" :halign "left")
+     (box :class "mic_bar" :halign "center" :vexpand "false" :hexpand "false"
+      (scale    :value mic_percent
+                   :space-evenly "false"
+             :orientation "h"
+                   :tooltip "mic on ${mic_percent}%"
+             :onchange "amixer -D pulse sset Capture {}%"
+             :max 100
+             :min 0))))))
+
+(defwindow audio_ctl
+  :monitor '["<primary>", "512NTBKGY549", "LG ULTRAGEAR+"]'
+  :geometry (geometry :x "-20px"
+             :y "7%"
+                         :anchor "top right"
+             :width "280px"
+             :height "60px")
+ (audio))
+
+
+(defwindow system
+  :monitor '["<primary>", "512NTBKGY549", "LG ULTRAGEAR+"]'
+  :geometry (geometry :x "-20px"
+             :y "7%"
+                         :anchor "top right"
+             :width "290px"
+             :height "120px")
+ (system))
+
+
+;;  Music
+(defwidget music_pop []
+    (box :class "music_pop" :orientation "h" :space-evenly "false" :vexpand "false" :hexpand "false"
+        (box :class "music_cover_art" :vexpand "false" :hexpand "false" :style "background-image: url('${cover_art}');")
+        (box :orientation "v" :spacing 20 :space-evenly "false" :vexpand "false" :hexpand "false"
+             (label :halign "center" :class "music" :wrap "true" :limit-width 13 :text song)
+             (label :halign "center" :class "music_artist" :wrap "true" :limit-width 15 :text song_artist)
+             (box :orientation "h" :spacing 15 :halign "center" :space-evenly "false" :vexpand "false" :hexpand "false"
+              (button :class "music_btn_prev" :onclick "${playerctl} previous" "")
+              (button :class "music_btn_play" :onclick "${playerctl} play-pause" song_status)
+              (button :class "music_btn_next" :onclick "${playerctl} next" ""))
+             (box :class "music_bar" :halign "center" :vexpand "false" :hexpand "false" :space-evenly "false"
+                   (scale :onscroll "mpc -q seek {}" :min 0 :active "true" :max 100 :value current_status)))))
+
+
+;;  music
+(defwindow music_win :stacking "fg" :focusable "false" :screen 1
+        :monitor '["<primary>", "XG49WCR"]'
+        :geometry (geometry :x "0" :y "7%" :width 428 :height 104 :anchor "top center")
+                 (music_pop))

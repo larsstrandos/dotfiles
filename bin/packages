@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+#
+# Installs packages/pacman.txt and packages/aur.txt (with yay), or with
+# --dump rewrites both lists from what is installed now.
+#
+# packages/aur.local.txt is not committed: it is installed like aur.txt, and
+# its packages are kept out of aur.txt on --dump.
+
+source "${0%/*}/functions.sh" || exit $?
+
+pacman_list="$dotfiles_dir/packages/pacman.txt"
+aur_list="$dotfiles_dir/packages/aur.txt"
+aur_local_list="$dotfiles_dir/packages/aur.local.txt"
+
+#
+# Prints the local package list, or nothing if there is none.
+#
+function local_packages()
+{
+	[[ -f "$aur_local_list" ]] && cat "$aur_local_list"
+	return 0
+}
+
+#
+# Writes the explicitly installed native and foreign packages to the lists.
+#
+function dump_packages()
+{
+	pacman -Qqen > "$pacman_list" || return $?
+	pacman -Qqem | grep -vxF -f <(local_packages) > "$aur_list"
+	(( PIPESTATUS[0] == 0 ))      || return 1
+	log "Wrote $(wc -l < "$pacman_list") native, $(wc -l < "$aur_list") AUR"
+}
+
+#
+# Installs whatever in the lists is missing.
+#
+function install_packages()
+{
+	# The list is user-readable; only pacman needs root.
+	# shellcheck disable=SC2024
+	sudo pacman -S --needed - < "$pacman_list" || return $?
+
+	if ! command -v yay >/dev/null; then
+		warn "yay not installed; skipping AUR packages"
+		return
+	fi
+	cat "$aur_list" <(local_packages) | yay -S --needed - || return $?
+}
+
+case "$1" in
+	--dump)	dump_packages    || fail "Dumping package lists failed!" ;;
+	"")	install_packages || fail "Installing packages failed!" ;;
+	*)	echo "packages: unrecognized option $1" >&2; exit 1 ;;
+esac

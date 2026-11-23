@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Launch the Lenovo IMM2 KVM viewer from the newest downloaded JNLP, bypassing Java Web Start.
+# Prefers Java 8: the native keyboard hook calls Window.getPeer(), removed in Java 9+.
+# Usage: imm-kvm [file.jnlp]
+d="$HOME/.local/share/imm-kvm"
+jnlp="${1:-$(ls -t ~/Downloads/viewer*.jnlp 2>/dev/null | head -1)}"
+[[ -f "$jnlp" ]] || { echo "imm-kvm: no viewer*.jnlp found in ~/Downloads" >&2; exit 1; }
+
+java_bin="${JAVA_BIN:-}"
+if [[ -z "$java_bin" ]]; then
+	for j in /usr/lib/jvm/java-8-openjdk/jre/bin/java /usr/lib/jvm/java-8-openjdk/bin/java; do
+		[[ -x "$j" ]] && { java_bin="$j"; break; }
+	done
+fi
+if [[ -z "$java_bin" ]]; then
+	java_bin=java
+	echo "imm-kvm: Java 8 not found, keyboard will not work (sudo pacman -S jre8-openjdk)" >&2
+fi
+
+opts=(-Djdk.tls.client.protocols=TLSv1.2
+      -Djdk.tls.namedGroups=secp256r1,secp384r1,secp521r1
+      -Djava.library.path="$d/lib")
+if ! "$java_bin" -version 2>&1 | grep -q '"1\.8'; then
+	opts+=(--enable-native-access=ALL-UNNAMED)
+fi
+
+mapfile -t args < <(grep -o '<argument>[^<]*</argument>' "$jnlp" | sed 's/<[^>]*>//g')
+exec "$java_bin" "${opts[@]}" -cp "$d/avctIBMViewer__V082817.jar" com.avocent.ibmc.kvm.Main "${args[@]}"

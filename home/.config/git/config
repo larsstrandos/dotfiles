@@ -1,0 +1,7 @@
+# Name/email are machine-local and not committed: ~/.config/git/identity
+#   git config --file ~/.config/git/identity user.name  "..."
+#   git config --file ~/.config/git/identity user.email "..."
+[include]
+	path = ~/.config/git/identity
+[init]
+	defaultBranch = main

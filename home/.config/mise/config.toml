@@ -1,0 +1,9 @@
+# Global dev tools. Distro packages (Hyprland, tmux, kitty, stow…) live in
+# packages/pacman.txt.
+[tools]
+uv = "latest"
+
+[env]
+# Secrets: sops+age encrypted, decrypted when mise activates.
+# Key: ~/.config/mise/age.txt. Uncomment once the file exists (see README):
+# _.file = { path = "~/.config/mise/secrets.enc.yaml", redact = true }

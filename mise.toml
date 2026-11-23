@@ -1,0 +1,46 @@
+# Repo tasks. Run `mise tasks` to list them.
+
+[tasks.link]
+description = "Symlink home/ into $HOME (conflicts are backed up first)"
+run = "bin/link"
+
+[tasks."link:check"]
+description = "Show what link would back up and create"
+run = "bin/link --dry-run"
+
+[tasks.system]
+description = "Install root-owned files from system/ (keyd)"
+run = "bin/system"
+
+[tasks.packages]
+description = "Install packages/pacman.txt and packages/aur.txt"
+run = "bin/packages"
+
+[tasks."packages:dump"]
+description = "Rewrite the package lists from what is installed"
+run = "bin/packages --dump"
+
+[tasks.services]
+description = "Enable user services"
+run = "systemctl --user enable --now ssh-agent.socket"
+
+[tasks.scan]
+description = "Scan the repo and its history for secrets"
+run = "gitleaks git --redact --verbose ."
+
+[tasks."hooks:install"]
+description = "Run gitleaks on every commit"
+run = """
+printf "#!/bin/sh\\nexec gitleaks git --pre-commit --staged --redact\\n" > .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+"""
+
+[tasks.bootstrap]
+description = "Set up a fresh machine"
+run = [
+  "mise run packages",
+  "mise run system",
+  "mise run link",
+  "mise run services",
+  "mise install",
+]

@@ -33,4 +33,4 @@ Arch + Hyprland + eww + fish + tmux, linked into `$HOME` with GNU Stow, tasks vi
 
 ## Wallpapers
 
-hyprpaper rotates `~/Pictures/wallpapers/current/{desktop,mobile}` (`mobile` on portrait monitors). The images live outside the repo.
+hyprpaper picks one random image from `~/Pictures/wallpapers/current/{desktop,mobile}` at startup and never rotates (`mobile` on portrait monitors). The images live outside the repo.

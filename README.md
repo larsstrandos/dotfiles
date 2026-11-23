@@ -31,7 +31,7 @@ Files that are in the way are moved to `~/.dotfiles-backup/<timestamp>/`, never 
 
 ## Wallpapers
 
-hyprpaper rotates every 10 minutes through `~/Pictures/wallpapers/current/desktop`, and `current/mobile` on the portrait monitor. `current` is a symlink to the active set, so switching themes is `ln -sfn <set> ~/Pictures/wallpapers/current` and a hyprpaper restart. The images are not in this repo: they are someone else's artwork, and the repo is public.
+hyprpaper picks a random image from `~/Pictures/wallpapers/current/desktop` at login, and from `current/mobile` on the portrait monitor. It does not change it after that; restart hyprpaper for a new one. `current` is a symlink to the active set, so switching themes is `ln -sfn <set> ~/Pictures/wallpapers/current` and a hyprpaper restart. The images are not in this repo: they are someone else's artwork, and the repo is public.
 
 ## Secrets
 

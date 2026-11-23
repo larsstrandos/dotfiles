@@ -29,6 +29,10 @@ Files that are in the way are moved to `~/.dotfiles-backup/<timestamp>/`, never 
 - **git:** name/email live in `~/.config/git/identity`, which is not committed.
 - **SSH:** `~/.ssh/config` is deliberately not in this repo.
 
+## Wallpapers
+
+hyprpaper rotates every 10 minutes through `~/Pictures/wallpapers/current/desktop`, and `current/mobile` on the portrait monitor. `current` is a symlink to the active set, so switching themes is `ln -sfn <set> ~/Pictures/wallpapers/current` and a hyprpaper restart. The images are not in this repo: they are someone else's artwork, and the repo is public.
+
 ## Secrets
 
 None are committed. When one is needed:

@@ -60,6 +60,9 @@ hl.on("hyprland.start", function()
     hl.exec_cmd('gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark"')  -- GTK3
 
     -- Need to start eww with env vars
+    -- Wallpapers: rotates ~/Pictures/wallpapers/current (see hyprpaper.conf)
+    hl.exec_cmd("hyprpaper")
+
     hl.exec_cmd("eww daemon --no-daemonize")
     hl.exec_cmd(home .. "/.local/bin/eww-bars") -- one topbar per monitor, see BAR_MONITORS
 

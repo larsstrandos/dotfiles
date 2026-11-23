@@ -5,3 +5,9 @@
 	path = ~/.config/git/identity
 [init]
 	defaultBranch = main
+[gpg]
+	format = ssh
+[gpg "ssh"]
+	program = /opt/1Password/op-ssh-sign
+[user]
+	signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH8rIBMXZoFRTGgO3p86PUs/MQgNVUqMtEbFtRxnLICp id_ed25519 - Privat

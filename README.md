@@ -1,5 +1,7 @@
 # dotfiles
 
+Primary: https://git.dataverket.org/lstrandos/dotfiles. Mirrored read-only to https://github.com/larsstrandos/dotfiles; changes go to the primary.
+
 Arch + Hyprland (Lua config) + fish + tmux + kitty + eww.
 
 - `home/` is a [GNU Stow](https://www.gnu.org/software/stow/) package mirroring `$HOME`, linked with `--no-folding` so only files (not directories) are symlinks.
@@ -10,7 +12,7 @@ Arch + Hyprland (Lua config) + fish + tmux + kitty + eww.
 
 ```sh
 sudo pacman -S --needed git mise stow
-git clone <this repo> ~/dotfiles && cd ~/dotfiles
+git clone https://git.dataverket.org/lstrandos/dotfiles.git ~/dotfiles && cd ~/dotfiles
 mise trust
 mise run link:check     # preview
 mise run bootstrap      # packages, system files, link, services, tools
